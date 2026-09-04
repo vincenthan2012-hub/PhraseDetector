@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>PhraseDetector</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <div class="header">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="logo">PhraseDetector ✨</span>
+            <select id="sourceLangSelect" title="Source Language" style="font-size: 10px; padding: 2px 4px; border-radius: 4px; border: 1px solid #ddd; outline: none; background: #f8f9fa; width: 100px; cursor: pointer; color: #666;">
+                <option value="auto">Auto (Detect)</option>
+                <option value="Cantonese">粤语 (Cantonese)</option>
+                <option value="English">英语 (English)</option>
+                <option value="Japanese">日语 (Japanese)</option>
+                <option value="Korean">韩语 (Korean)</option>
+                <option value="French">法语 (French)</option>
+                <option value="Spanish">西语 (Spanish)</option>
+                <option value="German">德语 (German)</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 5px; align-items: center;">
+            <button id="scanBtn">Scan Page</button>
+            <button id="resetScanBtn" class="secondary" style="display: none; font-size: 11px; padding: 6px 10px;"
+                title="Reset stuck scan">Reset</button>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="current">Current Page</div>
+        <div class="tab" data-tab="history">History</div>
+    </div>
+
+    <div class="sub-tabs" id="subTabs">
+        <div class="sub-tab" data-subtab="powerword">Power Word</div>
+        <div class="sub-tab active" data-subtab="phrase">Phrase</div>
+        <div class="sub-tab" data-subtab="structure">Structure</div>
+    </div>
+
+    <div id="cardList" class="card-list">
+        <!-- Cards injected here -->
+        <div class="empty-state">No phrases found yet.</div>
+    </div>
+
+    <div class="footer">
+        <div style="display: flex; align-items: center; gap: 5px; margin-right: auto;">
+            <select id="voiceSelect" class="voice-select" title="Select Voice" style="margin-right: 0;">
+                <option value="">Default Voice</option>
+            </select>
+            <button id="favoriteVoiceBtn" class="secondary-icon" title="Favorite Voice"
+                style="font-size: 16px; padding: 2px 6px;">☆</button>
+        </div>
+        <button id="favoritesBtn" class="secondary-icon" title="Saved Expressions">⭐</button>
+        <button id="clearBtn" class="secondary-icon" title="Clear All">🗑️</button>
+        <button id="optionsBtn" class="secondary-icon" title="Settings">⚙️</button>
+    </div>
+
+    <!-- Anki Modal -->
+    <div id="ankiModal" class="modal">
+        <div class="modal-content">
+            <h3>Select Deck</h3>
+            <select id="ankiDeckSelect"></select>
+            <div class="modal-actions">
+                <button id="ankiCancel" class="secondary">Cancel</button>
+                <button id="ankiConfirm">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="popup.js"></script>
+</body>
+
+</html>

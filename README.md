@@ -1,0 +1,135 @@
+# PhraseDetector 产品使用与配置说明文档
+
+**PhraseDetector** 是一款专为语言学习者与深度阅读者打造的智能浏览器插件。借助大语言模型（LLM）的上下文理解能力，它能够从网页长文中精准提炼出高价值词汇、地道短语与高级句式结构，并支持划词即搜、智能朗读、AI 故事串联记忆及一键同步到 Anki。
+
+---
+
+## 目录
+1. [产品核心功能](#1-产品核心功能)
+2. [插件安装步骤](#2-插件安装步骤)
+3. [大模型（LLM）配置方法](#3-大模型llm配置方法)
+   - [方案 A：本地模型（Ollama）](#方案-a本地模型ollama--免费--隐私安全)
+   - [方案 B：在线大模型（OpenAI 兼容接口）](#方案-b在线大模型openai-兼容接口)
+4. [进阶功能配置（TTS 与 Anki 同步）](#4-进阶功能配置)
+5. [常见问题排查（FAQ）](#5-常见问题排查faq)
+
+---
+
+## 1. 产品核心功能
+
+* **全文智能扫描（Scan Page）**：长文本分段流式分析，瞬间提炼全篇语言点。
+* **三维语言点分类体系**：
+  * 💎 **Power Word（核心/亮点词）**：生动有力的核心词汇，自动标注国际音标/拼音注音及精准释义。
+  * 🔗 **Phrase（实用短语）**：地道俚语、习惯用语与固定搭配。
+  * 🏗️ **Structure（句式结构）**：提炼高级写作/论述框架（如对比、递进、转折模板），助力表达升级。
+* **网页划词即搜**：选中文本右键一键获取上下文释义并自动添加彩色高亮。
+* **AI 故事记忆（Generate Story）**：将生词本中收藏的短语，一键由大模型串联创作成生动的生活小短文。
+* **Anki 无缝同步**：内置定制精美卡片样式，一键将生词推送到本地 Anki 牌组。
+
+---
+
+## 2. 插件安装步骤
+
+适用于 **Google Chrome**、**Microsoft Edge** 以及其他 Chromium 内核浏览器（Brave、Arc 等）。
+
+```mermaid
+graph LR
+    A[打开扩展管理页面] --> B[开启开发者模式]
+    B --> C[加载已解压的扩展程序]
+    C --> D[选择 PhraseDetector 文件夹]
+    D --> E[完成安装并固定图标]
+```
+
+### 详细操作步骤：
+
+1. **打开扩展程序管理界面**：
+   * 在 Chrome 地址栏输入并访问：`chrome://extensions/`
+   * （Edge 浏览器输入：`edge://extensions/`）
+2. **开启开发者模式**：
+   * 在页面右上角，找到并打开 **「开发者模式 (Developer Mode)」** 开关。
+3. **加载插件**：
+   * 点击左上角出现的 **「加载已解压的扩展程序 (Load unpacked)」** 按钮。
+   * 在弹出的文件选择框中，选中 `PhraseDetector` 的项目根目录文件夹并确认。
+4. **固定插件图标**：
+   * 点击浏览器右上角拼图形状的「扩展程序」图标，找到 **PhraseDetector** 并点击图钉 📌 将其固定到工具栏。
+
+---
+
+## 3. 大模型（LLM）配置方法
+
+安装完成后，点击插件图标底部的 **设置齿轮 ⚙️**（或右键插件图标选择「选项」），进入 **Settings** 页面进行大模型配置。
+
+---
+
+### 方案 A：本地模型（Ollama） — *免费 · 隐私安全*
+
+如果你本地运行了 Ollama（支持 Llama 3、Qwen 2.5、DeepSeek-R1 等）：
+
+| 配置项 | 推荐填写值 | 说明 |
+| :--- | :--- | :--- |
+| **LLM Provider** | `Ollama (Local)` | 选择本地 Ollama |
+| **API URL** | `http://127.0.0.1:11434/api/generate` <br>*(若遇到跨域问题可使用代理 `http://127.0.0.1:11435/api/generate`)* | Ollama 的生成接口 |
+| **API Key** | *留空即可* | 本地无需密钥 |
+| **Model Name** | `llama3:latest` 或 `qwen2.5:7b` | 你在本地 `ollama run` 下载的模型名称 |
+| **Explanation Language** | `Chinese (中文)` | 释义目标语言 |
+
+> **提示（跨域问题）**：
+> 若直连 11434 端口提示网络错误或 CORS 拦截，可在项目目录下终端运行 `node proxy.js` 启动内置代理服务，API URL 填写 `http://127.0.0.1:11435/api/generate` 即可。
+
+---
+
+### 方案 B：在线大模型（OpenAI 兼容接口）
+
+支持 **DeepSeek**、**OpenAI**、**通义千问 (Qwen)**、**Moonshot (Kimi)**、**SiliconFlow (硅基流动)** 等任何兼容 OpenAI 规范的 API 服务。
+
+#### 1. 常见平台配置参考：
+
+* **DeepSeek 官方 API**：
+  * **LLM Provider**：`Online (OpenAI Compatible)`
+  * **API URL**：`https://api.deepseek.com/v1/chat/completions`
+  * **API Key**：`sk-xxxxxxxxxxxxxxxxxxxxxxxx`
+  * **Model Name**：`deepseek-chat`
+* **OpenAI 官方 API**：
+  * **LLM Provider**：`Online (OpenAI Compatible)`
+  * **API URL**：`https://api.openai.com/v1/chat/completions`
+  * **API Key**：`sk-xxxxxxxxxxxxxxxxxxxxxxxx`
+  * **Model Name**：`gpt-4o-mini` 或 `gpt-4o`
+* **硅基流动 (SiliconFlow)**：
+  * **LLM Provider**：`Online (OpenAI Compatible)`
+  * **API URL**：`https://api.siliconflow.cn/v1/chat/completions`
+  * **API Key**：`sk-xxxxxxxxxxxxxxxxxxxxxxxx`
+  * **Model Name**：`deepseek-ai/DeepSeek-V3` 或 `Qwen/Qwen2.5-7B-Instruct`
+
+#### 2. 保存与连接测试：
+1. 填写完毕后，点击 **「Test Connection」** 按钮。
+2. 看到上方提示绿色的 **「Connection Successful!」** 即代表配置成功。
+3. 点击 **「Save Settings」** 保存设置。
+
+---
+
+## 4. 进阶功能配置
+
+### ① 语音朗读（TTS）配置
+* **Web Speech API（默认）**：无需任何配置，直接调用系统自带的拟真语音引擎。
+* **ElevenLabs（高保真拟真人声）**：
+  1. 在 Settings 中将 **TTS Provider** 切换为 `ElevenLabs`。
+  2. 填入你的 `ElevenLabs API Key`。
+  3. 添加 Voice 名称与对应的 `Voice ID`（如 Rachel、Adam 等），保存即可在插件中体验逼真人声。
+
+### ② Anki 同步配置（AnkiConnect）
+1. 确保电脑已安装并打开 **Anki** 客户端。
+2. 安装 Anki 插件 **AnkiConnect**（插件代码：`2055492159`）。
+3. 确保 AnkiConnect 监听 `http://127.0.0.1:8765`，PhraseDetector 将会自动识别你的卡牌牌组并一键推送定制卡片。
+
+---
+
+## 5. 常见问题排查（FAQ）
+
+* **Q: 点击 Scan Page 提示 `API 错误 401` 或 `403`？**
+  * **A**: 
+    * 401：API Key 填写有误或已过期，请检查密钥是否带有空格或遗漏。
+    * 403：检查当前 API 账户是否有足够余额或模型调用权限；如果使用 Ollama，请确认 Provider 是否误选为 Online。
+* **Q: 本地 Ollama 点击测试提示 `Failed to fetch`？**
+  * **A**: 请确认 Ollama 客户端已正常启动。若浏览器阻止本地跨域请求，请运行 `node proxy.js` 并将端口切换为 `11435`。
+* **Q: 网页划词没有弹出解释？**
+  * **A**: 刷新当前网页使 Content Script 生效；部分浏览器内部页面（如 `chrome://` 系列）不允许运行扩展程序。
