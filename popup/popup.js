@@ -479,8 +479,34 @@ async function render() {
     // Filter cards based on tab
     let filteredCards;
     if (activeTab === 'current') {
-        filteredCards = cards.filter(c => c.sourceUrl === currentUrl);
-        filteredCards = filteredCards.filter(c => getCardCategory(c) === activeSubTab);
+        const pageCards = cards.filter(c => c.sourceUrl === currentUrl);
+        
+        // Update sub-tab count labels
+        const countPower = pageCards.filter(c => getCardCategory(c) === 'powerword').length;
+        const countPhrase = pageCards.filter(c => getCardCategory(c) === 'phrase').length;
+        const countStruct = pageCards.filter(c => getCardCategory(c) === 'structure').length;
+
+        const subTabEls = document.querySelectorAll('.sub-tab');
+        subTabEls.forEach(st => {
+            const cat = st.dataset.subtab;
+            if (cat === 'powerword') st.textContent = countPower > 0 ? `Power Word (${countPower})` : 'Power Word';
+            if (cat === 'phrase') st.textContent = countPhrase > 0 ? `Phrase (${countPhrase})` : 'Phrase';
+            if (cat === 'structure') st.textContent = countStruct > 0 ? `Structure (${countStruct})` : 'Structure';
+        });
+
+        // If current active sub-tab has 0 items but another category has items, auto-select
+        if (pageCards.length > 0) {
+            const currentSubCount = pageCards.filter(c => getCardCategory(c) === activeSubTab).length;
+            if (currentSubCount === 0) {
+                if (countPhrase > 0) activeSubTab = 'phrase';
+                else if (countPower > 0) activeSubTab = 'powerword';
+                else if (countStruct > 0) activeSubTab = 'structure';
+
+                subTabEls.forEach(st => st.classList.toggle('active', st.dataset.subtab === activeSubTab));
+            }
+        }
+
+        filteredCards = pageCards.filter(c => getCardCategory(c) === activeSubTab);
     } else {
         filteredCards = cards.filter(c => c.sourceUrl !== currentUrl);
     }

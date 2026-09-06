@@ -8,10 +8,11 @@
 1. [产品核心功能](#1-产品核心功能)
 2. [插件安装步骤](#2-插件安装步骤)
 3. [大模型（LLM）配置方法](#3-大模型llm配置方法)
-   - [方案 A：本地模型（Ollama）](#方案-a本地模型ollama--免费--隐私安全)
+   - [方案 A：本地模型（Ollama）及 CORS 代理配置](#方案-a本地模型ollama-及-cors-代理配置-免费--隐私安全)
    - [方案 B：在线大模型（OpenAI 兼容接口）](#方案-b在线大模型openai-兼容接口)
-4. [进阶功能配置（TTS 与 Anki 同步）](#4-进阶功能配置)
-5. [常见问题排查（FAQ）](#5-常见问题排查faq)
+4. [本地代理（proxy.js）与 Node.js 安装说明](#4-本地代理proxyjs与-nodejs-安装说明)
+5. [进阶功能配置（TTS 与 Anki 同步）](#5-进阶功能配置)
+6. [常见问题排查（FAQ）](#6-常见问题排查faq)
 
 ---
 
@@ -61,26 +62,28 @@ graph LR
 
 ---
 
-### 方案 A：本地模型（Ollama） — *免费 · 隐私安全*
+### 方案 A：本地模型（Ollama）及 CORS 代理配置 — *免费 · 隐私安全*
 
 如果你本地运行了 Ollama（支持 Llama 3、Qwen 2.5、DeepSeek-R1 等）：
 
 | 配置项 | 推荐填写值 | 说明 |
 | :--- | :--- | :--- |
 | **LLM Provider** | `Ollama (Local)` | 选择本地 Ollama |
-| **API URL** | `http://127.0.0.1:11434/api/generate` <br>*(若遇到跨域问题可使用代理 `http://127.0.0.1:11435/api/generate`)* | Ollama 的生成接口 |
+| **API URL** | `http://127.0.0.1:11435/api/generate` *(推荐使用代理端口)*<br>或 `http://127.0.0.1:11434/api/generate` | 跨域时使用 `11435` 代理端口 |
 | **API Key** | *留空即可* | 本地无需密钥 |
-| **Model Name** | `llama3:latest` 或 `qwen2.5:7b` | 你在本地 `ollama run` 下载的模型名称 |
+| **Model Name** | `llama3:latest` 或 `qwen2.5:7b` | 你在本地下载的模型名称 |
 | **Explanation Language** | `Chinese (中文)` | 释义目标语言 |
 
-> **提示（跨域问题）**：
-> 若直连 11434 端口提示网络错误或 CORS 拦截，可在项目目录下终端运行 `node proxy.js` 启动内置代理服务，API URL 填写 `http://127.0.0.1:11435/api/generate` 即可。
+> **⚠️ 为什么推荐使用 11435 代理端口？**  
+> 浏览器的安全机制会拦截直接向 `11434` 端口发送的跨域请求（CORS）。运行项目内置的 `proxy.js`（工作在 `11435` 端口）可以完美解决跨域问题。具体启动步骤见下方第 4 节。
 
 ---
 
 ### 方案 B：在线大模型（OpenAI 兼容接口）
 
-支持 **DeepSeek**、**OpenAI**、**通义千问 (Qwen)**、**Moonshot (Kimi)**、**SiliconFlow (硅基流动)** 等任何兼容 OpenAI 规范的 API 服务。
+> **💡 说明**：使用在线大模型**完全不需要安装 Node.js 或运行代理脚本**，直接填入 API Key 即可。
+
+支持 **DeepSeek**、**OpenAI**、**通义千问 (Qwen)**、**Moonshot (Kimi)**、**SiliconFlow (硅基流动)** 等平台。
 
 #### 1. 常见平台配置参考：
 
@@ -107,7 +110,60 @@ graph LR
 
 ---
 
-## 4. 进阶功能配置
+## 4. 本地代理（proxy.js）与 Node.js 安装说明
+
+> **仅在使用本地 Ollama 且遇到 CORS 跨域拦截时需要此步骤**。使用在线 API 用户可直接跳过。
+
+### 4.1 检查/安装 Node.js 环境
+
+`proxy.js` 依赖 Node.js 运行时。
+
+1. **检查是否已安装 Node.js**：
+   打开终端输入：
+   ```bash
+   node -v
+   ```
+   * 若输出类似 `v18.x.x` 或 `v20.x.x`，说明已安装，直接进入下一步。
+   * 若提示 `command not found: node`，请前往 [Node.js 官方网站](https://nodejs.org/) 下载 **LTS 版本** 安装包完成安装。
+
+### 4.2 运行 proxy.js 代理服务
+
+1. **进入插件目录并安装依赖**：
+   ```bash
+   # 进入项目文件夹
+   cd /Users/vincenthan/Documents/备课/AI工具/PhraseDetector
+
+   # 安装必要依赖（express, cors, node-fetch）
+   npm install
+   ```
+
+2. **启动代理服务**：
+   ```bash
+   node proxy.js
+   # 或者
+   npm start
+   ```
+
+   控制台出现以下输出即表示代理启动成功：
+   ```text
+   🚀 CORS 代理服务器运行在 http://127.0.0.1:11435
+   📝 请求将转发到 Ollama (http://127.0.0.1:11434)
+   ✅ 现在可以在 Chrome 扩展中使用 http://127.0.0.1:11435/api/generate
+   ```
+
+3. **（可选）后台常驻运行**：
+   如果不想一直开着终端窗口，可以使用后台运行命令：
+   ```bash
+   # 后台常驻运行
+   nohup node proxy.js > proxy.log 2>&1 &
+
+   # 如需停止后台代理
+   pkill -f "node proxy.js"
+   ```
+
+---
+
+## 5. 进阶功能配置
 
 ### ① 语音朗读（TTS）配置
 * **Web Speech API（默认）**：无需任何配置，直接调用系统自带的拟真语音引擎。
@@ -123,13 +179,17 @@ graph LR
 
 ---
 
-## 5. 常见问题排查（FAQ）
+## 6. 常见问题排查（FAQ）
 
 * **Q: 点击 Scan Page 提示 `API 错误 401` 或 `403`？**
   * **A**: 
     * 401：API Key 填写有误或已过期，请检查密钥是否带有空格或遗漏。
     * 403：检查当前 API 账户是否有足够余额或模型调用权限；如果使用 Ollama，请确认 Provider 是否误选为 Online。
-* **Q: 本地 Ollama 点击测试提示 `Failed to fetch`？**
-  * **A**: 请确认 Ollama 客户端已正常启动。若浏览器阻止本地跨域请求，请运行 `node proxy.js` 并将端口切换为 `11435`。
+* **Q: 本地 Ollama 点击测试提示 `Failed to fetch` 或网络错误？**
+  * **A**: 
+    1. 请确认本地 Ollama 客户端已正常启动。
+    2. 运行 `node proxy.js` 启动代理，并在插件设置中将 URL 端口改为 `11435`（`http://127.0.0.1:11435/api/generate`）。
+* **Q: 使用在线大模型需要安装 Node.js 或运行 `proxy.js` 吗？**
+  * **A**: 不需要。在线 API 由浏览器直接发起 HTTPS 请求，免安装任何运行环境。
 * **Q: 网页划词没有弹出解释？**
   * **A**: 刷新当前网页使 Content Script 生效；部分浏览器内部页面（如 `chrome://` 系列）不允许运行扩展程序。

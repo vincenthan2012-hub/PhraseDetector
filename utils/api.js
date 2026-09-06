@@ -58,11 +58,13 @@ const readApiErrorDetail = async (response) => {
 };
 
 const buildApiErrorMessage = (response, settings, detail = '') => {
-    const hint = response.status === 403
-        ? ' 可能原因：API Key 无效/过期、权限不足、或请求被拒绝。Ollama 用户请确认服务已启动，API URL 用 http://127.0.0.1:11435/api/generate（代理）或 11434（直连），且 Provider 选 Ollama、API Key 留空。'
-        : (response.status === 401 ? ' 请检查 API Key 是否正确。' : '');
+    const hint = response.status === 400
+        ? ' 请求参数错误(400)。请检查：1) Model Name 是否填写有效；2) API URL 是否为完整的 Chat Completions 端点（如 https://api.openai.com/v1/chat/completions）。'
+        : (response.status === 403
+            ? ' 可能原因：API Key 无效/过期、权限不足、或请求被拒绝。Ollama 用户请确认服务已启动，API URL 用 http://127.0.0.1:11435/api/generate（代理）或 11434（直连），且 Provider 选 Ollama、API Key 留空。'
+            : (response.status === 401 ? ' 请检查 API Key 是否正确。' : (response.status === 404 ? ' 接口路径未找到(404)，请检查 API URL 是否正确。' : '')));
     const urlHint = settings.apiUrl ? `\nURL: ${settings.apiUrl}` : '';
-    const detailHint = detail ? `\n${detail}` : '';
+    const detailHint = detail ? `\n详情: ${detail}` : '';
     return `API 错误 ${response.status} (${response.statusText})${hint}${urlHint}${detailHint}`;
 };
 
@@ -96,7 +98,8 @@ const splitTextForScan = (text) => {
 };
 
 const parseScanItems = (raw) => {
-    const clean = raw.replace(/```json/g, '').replace(/```/g, '').replace(/^,/, '').trim();
+    if (!raw) return [];
+    const clean = raw.replace(/```json/gi, '').replace(/```/g, '').replace(/^,/, '').trim();
     if (!clean) return [];
 
     const items = [];
@@ -109,19 +112,72 @@ const parseScanItems = (raw) => {
 
     if (clean.startsWith('[')) {
         try {
-            JSON.parse(clean).forEach(tryPush);
-            return items;
-        } catch (e) { /* fall through to line/object parsing */ }
+            const arr = JSON.parse(clean);
+            if (Array.isArray(arr)) {
+                arr.forEach(tryPush);
+                return items;
+            }
+        } catch (e) { /* fall through to object extraction */ }
     }
 
     if (clean.startsWith('{') && clean.endsWith('}')) {
         try {
             tryPush(JSON.parse(clean));
             return items;
-        } catch (e) { /* ignore */ }
+        } catch (e) { /* fall through to brace extraction */ }
     }
 
+    // Extract any embedded JSON objects via brace matching
+    extractObjectsFromText(clean, tryPush);
     return items;
+};
+
+// Robust JSON object extractor that handles multiline, concatenated, or streaming JSON objects
+const extractObjectsFromText = (text, onObjectFound) => {
+    let braceCount = 0;
+    let startIdx = -1;
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+
+        if (escape) {
+            escape = false;
+            continue;
+        }
+        if (char === '\\') {
+            escape = true;
+            continue;
+        }
+        if (char === '"') {
+            inString = !inString;
+            continue;
+        }
+
+        if (!inString) {
+            if (char === '{') {
+                if (braceCount === 0) {
+                    startIdx = i;
+                }
+                braceCount++;
+            } else if (char === '}') {
+                braceCount--;
+                if (braceCount === 0 && startIdx !== -1) {
+                    const jsonStr = text.substring(startIdx, i + 1);
+                    try {
+                        const obj = JSON.parse(jsonStr);
+                        if (obj && typeof obj === 'object' && obj.phrase) {
+                            onObjectFound(obj);
+                        }
+                    } catch (e) {
+                        // Incomplete or invalid JSON object, skip
+                    }
+                    startIdx = -1;
+                }
+            }
+        }
+    }
 };
 
 const buildScanPrompt = (text, settings, streamFormat, chunkMeta = null) => {
@@ -132,21 +188,6 @@ const buildScanPrompt = (text, settings, streamFormat, chunkMeta = null) => {
     const chunkInstruction = chunkMeta && chunkMeta.totalChunks > 1
         ? `This is section ${chunkMeta.chunkIndex + 1} of ${chunkMeta.totalChunks} from a longer article. Extract ALL qualifying items from THIS section only — do not skip valid expressions.`
         : 'Extract ALL qualifying expressions from the entire text below — do not stop after a few examples.';
-
-    const formatInstruction = streamFormat
-        ? `Return the result as a stream of JSON objects, ONE PER LINE (NDJSON format). Do not wrap in an array. Output one JSON object per line until you have listed every qualifying item.
-    Each line must be a valid JSON object:
-    {"category": "...", "phrase": "...", "phonetic": "...", "explanation": "...", "sentence": "..."}`
-        : `Return ONLY a JSON array with this format:
-    [
-      {
-        "category": "powerword" | "phrase" | "structure",
-        "phrase": "...",
-        "phonetic": "...",
-        "explanation": "...",
-        "sentence": "..."
-      }
-    ]`;
 
     return `
     Analyze the following text and identify language-learning items in THREE categories. ${languageInstruction}
@@ -177,7 +218,17 @@ const buildScanPrompt = (text, settings, streamFormat, chunkMeta = null) => {
     - For "powerword" ONLY: provide phonetic transcription, pinyin, or romanization in "phonetic". Use the MOST COMMON learner-friendly system for the language (IPA for English; Pinyin for Mandarin; Jyutping for Cantonese; Romaji for Japanese; etc.).
     - For "phrase" and "structure": set "phonetic" to an empty string "".
 
-    ${formatInstruction}
+    OUTPUT FORMAT:
+    Output valid JSON objects for each expression found:
+    [
+      {
+        "category": "powerword" | "phrase" | "structure",
+        "phrase": "...",
+        "phonetic": "...",
+        "explanation": "...",
+        "sentence": "..."
+      }
+    ]
 
     IMPORTANT: The "sentence" field must be the EXACT complete sentence from the original text, including proper punctuation.
     Ignore standard subject-verb combinations. Focus on high language-learning value.
@@ -188,33 +239,33 @@ const buildScanPrompt = (text, settings, streamFormat, chunkMeta = null) => {
 };
 
 const buildScanRequestBody = (settings, prompt, stream) => {
-    const body = {
-        model: settings.modelName,
-        prompt,
-        stream
-    };
-
     if (isOllamaEndpoint(settings)) {
-        body.options = {
-            num_predict: 4096,
-            num_ctx: 16384,
-            temperature: 0.2
+        const body = {
+            model: settings.modelName,
+            prompt,
+            stream,
+            options: {
+                num_predict: 4096,
+                num_ctx: 16384,
+                temperature: 0.2
+            }
         };
         if (!stream) {
             body.format = 'json';
         }
+        return body;
     } else {
-        body.max_tokens = 4096;
-        if (!stream) {
-            body.format = 'json';
-        }
+        // OpenAI Compatible Chat Completion
+        return {
+            model: settings.modelName,
+            messages: [
+                { role: 'user', content: prompt }
+            ],
+            stream,
+            max_tokens: 4096,
+            temperature: 0.2
+        };
     }
-
-    return body;
-};
-
-const emitScanItems = (raw, onPhraseFound) => {
-    parseScanItems(raw).forEach(onPhraseFound);
 };
 
 export const scanPageText = async (text, settings, onPhraseFound) => {
@@ -244,47 +295,66 @@ export const fetchPhrasesStream = async (text, settings, onPhraseFound, chunkMet
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = '';
+        let accumulatedRawText = '';
+        let lineBuffer = '';
+        const emittedKeys = new Set();
+
+        const emitSingleItem = (obj) => {
+            if (obj && typeof obj === 'object' && obj.phrase) {
+                obj.category = normalizeCategory(obj.category);
+                const key = `${obj.phrase.toLowerCase().trim()}|||${(obj.sentence || '').trim()}`;
+                if (!emittedKeys.has(key)) {
+                    emittedKeys.add(key);
+                    onPhraseFound(obj);
+                }
+            }
+        };
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
             const chunk = decoder.decode(value, { stream: true });
-            // Ollama returns lines like: { "model": "...", "created_at": "...", "response": "...", "done": false }
-            // We need to parse these lines to get the "response" text, 
-            // THEN accumulate that text and look for our actual content JSON lines.
+            lineBuffer += chunk;
 
-            const lines = chunk.split('\n');
+            const lines = lineBuffer.split('\n');
+            lineBuffer = lines.pop() || '';
+
             for (const line of lines) {
-                if (!line.trim()) continue;
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                if (trimmed === 'data: [DONE]') continue;
+
+                let jsonStr = trimmed;
+                if (trimmed.startsWith('data:')) {
+                    jsonStr = trimmed.slice(5).trim();
+                }
+
                 try {
-                    const json = JSON.parse(line);
-                    if (json.response) {
-                        buffer += json.response;
-                        // Now check if buffer has a complete Line (NDJSON)
-                        // Our prompt asked for "ONE PER LINE".
-                        // So we look for newlines in the ACCUMULATED AI response.
+                    const json = JSON.parse(jsonStr);
+                    let textChunk = '';
+                    if (json.response !== undefined) {
+                        // Ollama format
+                        textChunk = json.response;
+                    } else if (json.choices && json.choices.length > 0) {
+                        // OpenAI format
+                        textChunk = json.choices[0]?.delta?.content || json.choices[0]?.message?.content || '';
+                    }
 
-                        let newlineIndex;
-                        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
-                            const lineContent = buffer.slice(0, newlineIndex).trim();
-                            buffer = buffer.slice(newlineIndex + 1);
-
-                            if (lineContent) {
-                                emitScanItems(lineContent, onPhraseFound);
-                            }
-                        }
+                    if (textChunk) {
+                        accumulatedRawText += textChunk;
+                        // Attempt progressive object extraction from accumulated text
+                        extractObjectsFromText(accumulatedRawText, emitSingleItem);
                     }
                 } catch (e) {
-                    console.error("Error parsing chunk:", e);
+                    // Non-JSON line from stream (e.g. comment), skip
                 }
             }
         }
 
-        // Process remaining buffer if any
-        if (buffer.trim()) {
-            emitScanItems(buffer, onPhraseFound);
+        // Final pass on full accumulated text to ensure nothing missed
+        if (accumulatedRawText.trim()) {
+            parseScanItems(accumulatedRawText).forEach(emitSingleItem);
         }
 
     } catch (error) {
@@ -345,16 +415,25 @@ export const explainSelection = async (selection, context, settings) => {
     `;
 
     try {
+        const isOllama = isOllamaEndpoint(settings);
+        const body = isOllama ? {
+            model: settings.modelName,
+            prompt: prompt,
+            stream: false,
+            format: "json",
+            options: { num_predict: 1024, temperature: 0.2 }
+        } : {
+            model: settings.modelName,
+            messages: [{ role: "user", content: prompt }],
+            stream: false,
+            max_tokens: 1024,
+            temperature: 0.2
+        };
+
         const response = await fetch(settings.apiUrl, {
             method: 'POST',
             headers: buildApiHeaders(settings),
-            body: JSON.stringify({
-                model: settings.modelName,
-                prompt: prompt,
-                stream: false,
-                format: "json",
-                ...(isOllamaEndpoint(settings) ? { options: { num_predict: 1024, temperature: 0.2 } } : { max_tokens: 1024 })
-            })
+            body: JSON.stringify(body)
         });
 
         if (!response.ok) {
@@ -380,7 +459,7 @@ export const explainSelection = async (selection, context, settings) => {
         console.error("LLM Explain Error:", error);
         throw error;
     }
-}
+};
 
 
 export const getAnkiDecks = async () => {
@@ -610,38 +689,38 @@ export const addNoteToAnki = async (card, deckName = 'Default') => {
 };
 
 export const chatWithAI = async (messages, settings) => {
-    // For Ollama/OpenAI, we usually send an array of messages.
-    // prompt: string or messages: []
-    // If using 'generate' endpoint of Ollama, it's 'prompt'. If 'chat', it's 'messages'.
-    // Our existing fetchPhrases uses 'generate' with 'prompt'.
-    // To support chat history, we might want 'chat' endpoint, or just concatenate prompt.
-    // For simplicity with 'generate' endpoint:
+    const isOllama = isOllamaEndpoint(settings);
+    let body;
 
-    let prompt = "";
-    messages.forEach(m => {
-        prompt += `${m.role}: ${m.content}\n`;
-    });
-    prompt += "assistant: ";
+    if (isOllama) {
+        let prompt = "";
+        messages.forEach(m => {
+            prompt += `${m.role}: ${m.content}\n`;
+        });
+        prompt += "assistant: ";
+        body = {
+            model: settings.modelName,
+            prompt: prompt,
+            stream: false
+        };
+    } else {
+        body = {
+            model: settings.modelName,
+            messages: messages,
+            stream: false
+        };
+    }
 
     try {
         const response = await fetch(settings.apiUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(settings.apiKey ? { 'Authorization': `Bearer ${settings.apiKey}` } : {})
-            },
-            body: JSON.stringify({
-                model: settings.modelName,
-                prompt: prompt,
-                stream: false
-            })
+            headers: buildApiHeaders(settings),
+            body: JSON.stringify(body)
         });
 
         if (!response.ok) {
-            const hint = response.status === 403
-                ? ' 可能原因：API Key 无效或已过期、权限不足、或服务端拒绝访问。若用 Ollama 请确保代理/直连地址正确且无需密钥。'
-                : (response.status === 401 ? ' 请检查 API Key 是否正确。' : '');
-            throw new Error(`API 错误 ${response.status} (${response.statusText})${hint}`);
+            const detail = await readApiErrorDetail(response);
+            throw new Error(buildApiErrorMessage(response, settings, detail));
         }
 
         const data = await response.json();
@@ -671,24 +750,26 @@ export const generateStory = async (favorites, settings) => {
     `;
 
     try {
+        const isOllama = isOllamaEndpoint(settings);
+        const body = isOllama ? {
+            model: settings.modelName,
+            prompt: prompt,
+            stream: false
+        } : {
+            model: settings.modelName,
+            messages: [{ role: "user", content: prompt }],
+            stream: false
+        };
+
         const response = await fetch(settings.apiUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(settings.apiKey ? { 'Authorization': `Bearer ${settings.apiKey}` } : {})
-            },
-            body: JSON.stringify({
-                model: settings.modelName,
-                prompt: prompt,
-                stream: false
-            })
+            headers: buildApiHeaders(settings),
+            body: JSON.stringify(body)
         });
 
         if (!response.ok) {
-            const hint = response.status === 403
-                ? ' 可能原因：API Key 无效或已过期、权限不足、或服务端拒绝访问。若用 Ollama 请确保代理/直连地址正确且无需密钥。'
-                : (response.status === 401 ? ' 请检查 API Key 是否正确。' : '');
-            throw new Error(`API 错误 ${response.status} (${response.statusText})${hint}`);
+            const detail = await readApiErrorDetail(response);
+            throw new Error(buildApiErrorMessage(response, settings, detail));
         }
 
         const data = await response.json();

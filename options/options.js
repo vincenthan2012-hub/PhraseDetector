@@ -76,7 +76,15 @@ async function load() {
 }
 
 function toggleKey() {
-    els.keyGroup.style.display = els.provider.value === 'online' ? 'block' : 'none';
+    const isOnline = els.provider.value === 'online';
+    els.keyGroup.style.display = isOnline ? 'block' : 'none';
+    if (isOnline) {
+        els.url.placeholder = 'https://api.deepseek.com/v1/chat/completions';
+        els.model.placeholder = 'deepseek-chat 或 gpt-4o-mini';
+    } else {
+        els.url.placeholder = 'http://127.0.0.1:11435/api/generate';
+        els.model.placeholder = 'llama3:latest';
+    }
 }
 
 function toggleTtsConfig() {
@@ -197,42 +205,62 @@ async function testConnection() {
     els.status.style.display = 'block';
     els.status.className = '';
 
-    const url = els.url.value;
-    const model = els.model.value;
-    const isOllama = els.provider.value === 'ollama' || url.includes('11434') || url.includes('11435');
+    const url = els.url.value.trim();
+    const model = els.model.value.trim();
+    const isOllama = els.provider.value === 'ollama' || url.includes('11434') || url.includes('11435') || url.includes('/api/generate');
     const headers = { 'Content-Type': 'application/json' };
     const apiKey = els.key.value.trim();
     if (!isOllama && apiKey) {
         headers['Authorization'] = `Bearer ${apiKey}`;
     }
 
+    const requestBody = isOllama ? {
+        model: model,
+        prompt: "Hi",
+        stream: false,
+        options: { num_predict: 16 }
+    } : {
+        model: model,
+        messages: [{ role: "user", content: "Hi" }],
+        stream: false,
+        max_tokens: 16
+    };
+
     try {
         const res = await fetch(url, {
             method: 'POST',
             headers,
-            body: JSON.stringify({
-                model: model,
-                prompt: "Hi",
-                stream: false,
-                ...(isOllama ? { options: { num_predict: 16 } } : { max_tokens: 16 })
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (res.ok) {
             showStatus('Connection Successful!', 'success');
         } else {
+            let detail = '';
+            try {
+                const text = await res.text();
+                if (text) detail = text.length > 200 ? text.slice(0, 200) + '...' : text;
+            } catch (e) {}
+
             let msg = `Error: ${res.status} ${res.statusText}`;
-            if (res.status === 403) {
-                msg += '。可能原因：API Key 无效或已过期、权限不足；若用 Ollama 请确认代理(11435)或直连(11434)已启动且地址正确。';
+            if (res.status === 400) {
+                msg += ' (400 Bad Request)。请检查：1) Model Name 是否有效；2) API URL 是否为完整的 Chat Completions 端点（如 https://api.openai.com/v1/chat/completions）。';
             } else if (res.status === 401) {
                 msg += '。请检查 API Key 是否正确。';
+            } else if (res.status === 403) {
+                msg += '。可能原因：API Key 无效或已过期、权限不足；若用 Ollama 请确认代理(11435)或直连(11434)已启动且地址正确。';
+            } else if (res.status === 404) {
+                msg += '。API 路径未找到(404)，请检查 API URL 是否填写完整。';
+            }
+            if (detail) {
+                msg += ` [详情: ${detail}]`;
             }
             showStatus(msg, 'error');
         }
     } catch (e) {
         let msg = e.message || 'Unknown error';
         if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-            msg += '。请确认：1) Ollama 已启动；2) 若用代理，请运行 node proxy.js 启动代理(端口 11435)。';
+            msg += '。请确认：1) 网络与 API 地址可连通；2) 若用 Ollama，请确认服务已启动或运行 node proxy.js 开启代理。';
         }
         showStatus(`Error: ${msg}`, 'error');
     }
