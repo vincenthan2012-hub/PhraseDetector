@@ -76,7 +76,7 @@ const PROVIDER_PRESETS = {
     },
     ollama: {
         name: 'Ollama (Local)',
-        url: 'http://127.0.0.1:11435/api/generate',
+        url: 'http://127.0.0.1:11434/api/generate',
         model: 'llama3:latest',
         apiKeyRequired: false,
         keyPlaceholder: ''
@@ -130,7 +130,7 @@ async function load() {
 
     // Load providerConfigs
     providerConfigs = s.providerConfigs || {};
-    
+
     // Ensure all presets exist in providerConfigs with their defaults
     for (const [pKey, preset] of Object.entries(PROVIDER_PRESETS)) {
         if (!providerConfigs[pKey]) {
@@ -232,13 +232,13 @@ function renderTags(models) {
     models.forEach(m => {
         const tag = document.createElement('span');
         tag.className = 'tag';
-        
+
         const tagText = document.createElement('span');
         tagText.textContent = m;
         tagText.onclick = () => {
             els.model.value = m;
         };
-        
+
         const deleteBtn = document.createElement('span');
         deleteBtn.className = 'tag-delete';
         deleteBtn.textContent = '×';
@@ -249,7 +249,7 @@ function renderTags(models) {
             await saveSettings(s);
             renderTags(s.savedModels);
         };
-        
+
         tag.appendChild(tagText);
         tag.appendChild(deleteBtn);
         els.tags.appendChild(tag);
@@ -262,10 +262,10 @@ function renderElevenLabsVoices() {
         const tag = document.createElement('span');
         tag.className = 'tag';
         tag.style.marginBottom = '5px';
-        
+
         const tagText = document.createElement('span');
         tagText.textContent = `${voice.name} (${voice.id})`;
-        
+
         const deleteBtn = document.createElement('span');
         deleteBtn.className = 'tag-delete';
         deleteBtn.textContent = '×';
@@ -275,7 +275,7 @@ function renderElevenLabsVoices() {
             renderElevenLabsVoices();
             save();
         };
-        
+
         tag.appendChild(tagText);
         tag.appendChild(deleteBtn);
         els.elevenLabsVoicesList.appendChild(tag);
@@ -332,15 +332,15 @@ function addElevenVoice() {
         showStatus('Please enter both Name and Voice ID.', 'error');
         return;
     }
-    
+
     // update list
     currentElevenLabsVoices.push({ name, id });
     renderElevenLabsVoices();
-    
+
     // clear input
     els.newElevenVoiceName.value = '';
     els.newElevenVoiceId.value = '';
-    
+
     // Auto-save settings
     save();
 }
@@ -385,7 +385,7 @@ async function testConnection() {
             try {
                 const text = await res.text();
                 if (text) detail = text.length > 200 ? text.slice(0, 200) + '...' : text;
-            } catch (e) {}
+            } catch (e) { }
 
             let msg = `Error: ${res.status} ${res.statusText}`;
             if (res.status === 400) {
@@ -441,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
             switchTab('tab-settings');
         }
     }
-    
+
     window.addEventListener('hashchange', onHashChange);
     onHashChange();
 });

@@ -13,7 +13,7 @@ const KEYS = {
 
 const DEFAULT_SETTINGS = {
     llmProvider: 'ollama', // 'deepseek', 'siliconflow', 'openrouter', 'openai', 'qwen', 'moonshot', 'zhipu', 'ollama', 'online'
-    apiUrl: 'http://127.0.0.1:11435/api/generate',
+    apiUrl: 'http://127.0.0.1:11434/api/generate',
     modelName: 'llama3:latest',
     apiKey: '',
     providerConfigs: {
@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS = {
         qwen: { apiUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', apiKey: '', modelName: 'qwen-plus' },
         moonshot: { apiUrl: 'https://api.moonshot.cn/v1/chat/completions', apiKey: '', modelName: 'moonshot-v1-8k' },
         zhipu: { apiUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', apiKey: '', modelName: 'glm-4-flash' },
-        ollama: { apiUrl: 'http://127.0.0.1:11435/api/generate', apiKey: '', modelName: 'llama3:latest' },
+        ollama: { apiUrl: 'http://127.0.0.1:11434/api/generate', apiKey: '', modelName: 'llama3:latest' },
         online: { apiUrl: '', apiKey: '', modelName: '' }
     },
     targetLang: 'Chinese',
@@ -68,7 +68,7 @@ export const saveCard = async (card) => {
             cards.unshift(card);
         } else {
             const currentUrl = card.sourceUrl || '';
-            
+
             // Find if there are already cards from the same URL
             let lastSameUrlIndex = -1;
             for (let i = cards.length - 1; i >= 0; i--) {
@@ -77,7 +77,7 @@ export const saveCard = async (card) => {
                     break;
                 }
             }
-            
+
             if (lastSameUrlIndex !== -1) {
                 // Insert after the last card of the same article (maintain order within scan)
                 cards.splice(lastSameUrlIndex + 1, 0, card);
@@ -118,7 +118,7 @@ export const getScanningStatus = async () => {
 };
 
 export const setScanningStatus = async (isScanning) => {
-    await chrome.storage.local.set({ 
+    await chrome.storage.local.set({
         [KEYS.IS_SCANNING]: isScanning,
         [KEYS.SCAN_START_TIME]: isScanning ? Date.now() : null
     });
@@ -143,7 +143,7 @@ export const getScanStartTime = async () => {
 };
 
 export const resetScanningStatus = async () => {
-    await chrome.storage.local.set({ 
+    await chrome.storage.local.set({
         [KEYS.IS_SCANNING]: false,
         [KEYS.SCAN_START_TIME]: null
     });
@@ -158,8 +158,8 @@ export const getFavorites = async () => {
 export const addFavorite = async (card, sourceUrl) => {
     const favorites = await getFavorites();
     // Check if already favorited (by phrase and sentence)
-    const exists = favorites.find(f => 
-        f.phrase.toLowerCase() === card.phrase.toLowerCase() && 
+    const exists = favorites.find(f =>
+        f.phrase.toLowerCase() === card.phrase.toLowerCase() &&
         f.sentence === card.sentence
     );
     if (!exists) {
@@ -201,8 +201,8 @@ export const clearFavorites = async () => {
 
 export const isFavorite = async (card) => {
     const favorites = await getFavorites();
-    return favorites.some(f => 
-        f.phrase.toLowerCase() === card.phrase.toLowerCase() && 
+    return favorites.some(f =>
+        f.phrase.toLowerCase() === card.phrase.toLowerCase() &&
         f.sentence === card.sentence
     );
 };
