@@ -125,7 +125,7 @@ graph LR
 1. **进入插件目录并安装依赖**：
    ```bash
    # 进入项目文件夹
-   cd /Users/vincenthan/Documents/备课/AI工具/PhraseDetector
+   cd /（解压后的路径，直接将解压后的文件夹拖进终端即可，注意cd后面有空格））
 
    # 安装必要依赖（express, cors, node-fetch）
    npm install
