@@ -79,34 +79,28 @@ graph LR
 
 ---
 
-### 方案 B：在线大模型（OpenAI 兼容接口）
+### 方案 B：主流在线大模型及自定义接口（自动填充）
 
-> **💡 说明**：使用在线大模型**完全不需要安装 Node.js 或运行代理脚本**，直接填入 API Key 即可。
+> **💡 说明**：使用在线大模型**完全不需要安装 Node.js 或运行代理脚本**。在设置页面选择对应的 Provider 即可**自动填充 API URL 与默认 Model Name**，只需填入您的 API Key 即可。
 
-支持 **DeepSeek**、**OpenAI**、**通义千问 (Qwen)**、**Moonshot (Kimi)**、**SiliconFlow (硅基流动)** 等平台。
+#### 1. 支持的预设 Provider：
 
-#### 1. 常见平台配置参考：
-
-* **DeepSeek 官方 API**：
-  * **LLM Provider**：`Online (OpenAI Compatible)`
-  * **API URL**：`https://api.deepseek.com/v1/chat/completions`
-  * **API Key**：`sk-xxxxxxxxxxxxxxxxxxxxxxxx`
-  * **Model Name**：`deepseek-chat`
-* **OpenAI 官方 API**：
-  * **LLM Provider**：`Online (OpenAI Compatible)`
-  * **API URL**：`https://api.openai.com/v1/chat/completions`
-  * **API Key**：`sk-xxxxxxxxxxxxxxxxxxxxxxxx`
-  * **Model Name**：`gpt-4o-mini` 或 `gpt-4o`
-* **硅基流动 (SiliconFlow)**：
-  * **LLM Provider**：`Online (OpenAI Compatible)`
-  * **API URL**：`https://api.siliconflow.cn/v1/chat/completions`
-  * **API Key**：`sk-xxxxxxxxxxxxxxxxxxxxxxxx`
-  * **Model Name**：`deepseek-ai/DeepSeek-V3` 或 `Qwen/Qwen2.5-7B-Instruct`
+| Provider | 预设 API URL | 默认模型推荐 | 说明 |
+| :--- | :--- | :--- | :--- |
+| **DeepSeek (官方)** | `https://api.deepseek.com/v1/chat/completions` | `deepseek-chat` | 官方大模型，高性价比 |
+| **SiliconFlow (硅基流动)** | `https://api.siliconflow.cn/v1/chat/completions` | `deepseek-ai/DeepSeek-V3` | 聚合算力平台，支持多种开源大模型 |
+| **OpenRouter** | `https://openrouter.ai/api/v1/chat/completions` | `deepseek/deepseek-chat` | 全球多模型统一路由网关 |
+| **OpenAI (ChatGPT)** | `https://api.openai.com/v1/chat/completions` | `gpt-4o-mini` 或 `gpt-4o` | 官方 ChatGPT 接口 |
+| **通义千问 (DashScope)** | `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions` | `qwen-plus` | 阿里百炼兼容接口 |
+| **Kimi (Moonshot)** | `https://api.moonshot.cn/v1/chat/completions` | `moonshot-v1-8k` | 月之暗面 Kimi |
+| **智谱清言 (GLM)** | `https://open.bigmodel.cn/api/paas/v4/chat/completions` | `glm-4-flash` | 智谱 AI 开放平台 |
+| **Custom (OpenAI Compatible)** | *自定义输入* | *自定义输入* | 适配 OneAPI、NewAPI、LocalAI、Cloudflare 等自建代理 |
 
 #### 2. 保存与连接测试：
-1. 填写完毕后，点击 **「Test Connection」** 按钮。
-2. 看到上方提示绿色的 **「Connection Successful!」** 即代表配置成功。
-3. 点击 **「Save Settings」** 保存设置。
+1. 下拉选择目标 Provider，插件会自动填入对应官方 **API URL** 与 **推荐模型**。
+2. 填入您的 **API Key**（以 `sk-...` 开头）。
+3. 点击 **「Test Connection」** 按钮，显示绿色的 **「Connection Successful!」** 即代表配置成功。
+4. 点击 **「Save Settings」** 保存设置。
 
 ---
 

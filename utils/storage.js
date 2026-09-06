@@ -12,10 +12,21 @@ const KEYS = {
 };
 
 const DEFAULT_SETTINGS = {
-    llmProvider: 'ollama', // 'ollama' or 'online'
-    apiUrl: 'http://127.0.0.1:11435/api/generate', // 扩展推荐经 CORS 代理访问 Ollama
+    llmProvider: 'ollama', // 'deepseek', 'siliconflow', 'openrouter', 'openai', 'qwen', 'moonshot', 'zhipu', 'ollama', 'online'
+    apiUrl: 'http://127.0.0.1:11435/api/generate',
     modelName: 'llama3:latest',
     apiKey: '',
+    providerConfigs: {
+        deepseek: { apiUrl: 'https://api.deepseek.com/v1/chat/completions', apiKey: '', modelName: 'deepseek-chat' },
+        siliconflow: { apiUrl: 'https://api.siliconflow.cn/v1/chat/completions', apiKey: '', modelName: 'deepseek-ai/DeepSeek-V3' },
+        openrouter: { apiUrl: 'https://openrouter.ai/api/v1/chat/completions', apiKey: '', modelName: 'deepseek/deepseek-chat' },
+        openai: { apiUrl: 'https://api.openai.com/v1/chat/completions', apiKey: '', modelName: 'gpt-4o-mini' },
+        qwen: { apiUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', apiKey: '', modelName: 'qwen-plus' },
+        moonshot: { apiUrl: 'https://api.moonshot.cn/v1/chat/completions', apiKey: '', modelName: 'moonshot-v1-8k' },
+        zhipu: { apiUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', apiKey: '', modelName: 'glm-4-flash' },
+        ollama: { apiUrl: 'http://127.0.0.1:11435/api/generate', apiKey: '', modelName: 'llama3:latest' },
+        online: { apiUrl: '', apiKey: '', modelName: '' }
+    },
     targetLang: 'Chinese',
     sourceLang: 'auto',
     highlightColorAuto: 'yellow',

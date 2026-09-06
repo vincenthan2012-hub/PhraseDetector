@@ -24,9 +24,77 @@ const els = {
     elevenLabsVoicesList: document.getElementById('elevenLabsVoicesList')
 };
 
+const PROVIDER_PRESETS = {
+    deepseek: {
+        name: 'DeepSeek (官方)',
+        url: 'https://api.deepseek.com/v1/chat/completions',
+        model: 'deepseek-chat',
+        apiKeyRequired: true,
+        keyPlaceholder: 'sk-...'
+    },
+    siliconflow: {
+        name: 'SiliconFlow (硅基流动)',
+        url: 'https://api.siliconflow.cn/v1/chat/completions',
+        model: 'deepseek-ai/DeepSeek-V3',
+        apiKeyRequired: true,
+        keyPlaceholder: 'sk-...'
+    },
+    openrouter: {
+        name: 'OpenRouter',
+        url: 'https://openrouter.ai/api/v1/chat/completions',
+        model: 'deepseek/deepseek-chat',
+        apiKeyRequired: true,
+        keyPlaceholder: 'sk-or-...'
+    },
+    openai: {
+        name: 'OpenAI (ChatGPT)',
+        url: 'https://api.openai.com/v1/chat/completions',
+        model: 'gpt-4o-mini',
+        apiKeyRequired: true,
+        keyPlaceholder: 'sk-...'
+    },
+    qwen: {
+        name: '通义千问 (DashScope)',
+        url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+        model: 'qwen-plus',
+        apiKeyRequired: true,
+        keyPlaceholder: 'sk-...'
+    },
+    moonshot: {
+        name: 'Kimi (Moonshot)',
+        url: 'https://api.moonshot.cn/v1/chat/completions',
+        model: 'moonshot-v1-8k',
+        apiKeyRequired: true,
+        keyPlaceholder: 'sk-...'
+    },
+    zhipu: {
+        name: '智谱清言 (GLM)',
+        url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+        model: 'glm-4-flash',
+        apiKeyRequired: true,
+        keyPlaceholder: 'API Key...'
+    },
+    ollama: {
+        name: 'Ollama (Local)',
+        url: 'http://127.0.0.1:11435/api/generate',
+        model: 'llama3:latest',
+        apiKeyRequired: false,
+        keyPlaceholder: ''
+    },
+    online: {
+        name: 'Custom (OpenAI Compatible)',
+        url: '',
+        model: '',
+        apiKeyRequired: true,
+        keyPlaceholder: 'sk-...'
+    }
+};
+
 let currentAuto = 'yellow';
 let currentManual = 'pink';
 let currentElevenLabsVoices = [];
+let activeProvider = 'ollama';
+let providerConfigs = {};
 
 function showStatus(msg, type) {
     els.status.textContent = msg;
@@ -54,11 +122,38 @@ function setupSwatches(swatches, isAuto) {
 
 async function load() {
     const s = await getSettings();
-    els.provider.value = s.llmProvider;
-    els.url.value = s.apiUrl || 'http://127.0.0.1:11435/api/generate';
-    els.key.value = s.apiKey;
-    els.model.value = s.modelName;
-    els.lang.value = s.targetLang;
+    activeProvider = s.llmProvider || 'ollama';
+    if (!PROVIDER_PRESETS[activeProvider]) {
+        activeProvider = 'online';
+    }
+    els.provider.value = activeProvider;
+
+    // Load providerConfigs
+    providerConfigs = s.providerConfigs || {};
+    
+    // Ensure all presets exist in providerConfigs with their defaults
+    for (const [pKey, preset] of Object.entries(PROVIDER_PRESETS)) {
+        if (!providerConfigs[pKey]) {
+            providerConfigs[pKey] = {
+                apiUrl: preset.url || '',
+                apiKey: '',
+                modelName: preset.model || ''
+            };
+        }
+    }
+
+    // Sync legacy or active settings to active provider slot
+    if (s.apiUrl) providerConfigs[activeProvider].apiUrl = s.apiUrl;
+    if (s.apiKey) providerConfigs[activeProvider].apiKey = s.apiKey;
+    if (s.modelName) providerConfigs[activeProvider].modelName = s.modelName;
+
+    // Load active provider values into UI inputs
+    const currentConfig = providerConfigs[activeProvider];
+    els.url.value = currentConfig.apiUrl || '';
+    els.key.value = currentConfig.apiKey || '';
+    els.model.value = currentConfig.modelName || '';
+
+    els.lang.value = s.targetLang || 'Chinese';
     els.ttsProvider.value = s.ttsProvider || 'web';
     els.elevenApiKey.value = s.elevenLabsApiKey || '';
     currentElevenLabsVoices = s.elevenLabsVoices || [];
@@ -69,21 +164,61 @@ async function load() {
     selectSwatch(els.autoSwatches, currentAuto);
     selectSwatch(els.manualSwatches, currentManual);
 
-    toggleKey();
+    updateProviderUIState(activeProvider);
     toggleTtsConfig();
     renderTags(s.savedModels);
     renderElevenLabsVoices();
 }
 
-function toggleKey() {
-    const isOnline = els.provider.value === 'online';
-    els.keyGroup.style.display = isOnline ? 'block' : 'none';
-    if (isOnline) {
-        els.url.placeholder = 'https://api.deepseek.com/v1/chat/completions';
-        els.model.placeholder = 'deepseek-chat 或 gpt-4o-mini';
+function onProviderChange() {
+    // 1. Save current input values into previous active provider
+    if (activeProvider && providerConfigs[activeProvider]) {
+        providerConfigs[activeProvider].apiUrl = els.url.value.trim();
+        providerConfigs[activeProvider].apiKey = els.key.value.trim();
+        providerConfigs[activeProvider].modelName = els.model.value.trim();
+    }
+
+    // 2. Switch to new provider
+    activeProvider = els.provider.value;
+    const preset = PROVIDER_PRESETS[activeProvider] || PROVIDER_PRESETS.online;
+
+    if (!providerConfigs[activeProvider]) {
+        providerConfigs[activeProvider] = {
+            apiUrl: preset.url || '',
+            apiKey: '',
+            modelName: preset.model || ''
+        };
+    }
+
+    // 3. Load new provider's saved values
+    const targetConfig = providerConfigs[activeProvider];
+    els.url.value = targetConfig.apiUrl !== undefined ? targetConfig.apiUrl : (preset.url || '');
+    els.key.value = targetConfig.apiKey || '';
+    els.model.value = targetConfig.modelName !== undefined ? targetConfig.modelName : (preset.model || '');
+
+    // 4. Update UI input state (placeholders, visibility)
+    updateProviderUIState(activeProvider);
+}
+
+function updateProviderUIState(provider) {
+    const preset = PROVIDER_PRESETS[provider] || PROVIDER_PRESETS.online;
+
+    // Show/hide API Key input
+    els.keyGroup.style.display = preset.apiKeyRequired ? 'block' : 'none';
+    if (preset.keyPlaceholder) {
+        els.key.placeholder = preset.keyPlaceholder;
+    }
+
+    if (preset.url) {
+        els.url.placeholder = preset.url;
     } else {
-        els.url.placeholder = 'http://127.0.0.1:11435/api/generate';
-        els.model.placeholder = 'llama3:latest';
+        els.url.placeholder = 'https://api.your-provider.com/v1/chat/completions';
+    }
+
+    if (preset.model) {
+        els.model.placeholder = preset.model;
+    } else {
+        els.model.placeholder = 'custom-model-name';
     }
 }
 
@@ -149,11 +284,21 @@ function renderElevenLabsVoices() {
 
 async function save() {
     const old = await getSettings();
+
+    // Sync current inputs into activeProvider's config
+    if (activeProvider) {
+        if (!providerConfigs[activeProvider]) providerConfigs[activeProvider] = {};
+        providerConfigs[activeProvider].apiUrl = els.url.value.trim();
+        providerConfigs[activeProvider].apiKey = els.key.value.trim();
+        providerConfigs[activeProvider].modelName = els.model.value.trim();
+    }
+
     await saveSettings({
-        llmProvider: els.provider.value,
-        apiUrl: els.url.value,
-        apiKey: els.key.value,
-        modelName: els.model.value,
+        llmProvider: activeProvider,
+        apiUrl: els.url.value.trim(),
+        apiKey: els.key.value.trim(),
+        modelName: els.model.value.trim(),
+        providerConfigs: providerConfigs,
         targetLang: els.lang.value,
         ttsProvider: els.ttsProvider.value,
         elevenLabsApiKey: els.elevenApiKey.value,
@@ -269,7 +414,7 @@ async function testConnection() {
 els.save.addEventListener('click', save);
 els.saveModel.addEventListener('click', saveModelTag);
 els.test.addEventListener('click', testConnection);
-els.provider.addEventListener('change', toggleKey);
+els.provider.addEventListener('change', onProviderChange);
 els.ttsProvider.addEventListener('change', toggleTtsConfig);
 els.addElevenVoiceBtn.addEventListener('click', addElevenVoice);
 
